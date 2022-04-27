@@ -1,0 +1,15 @@
+{{define "block"}}
+{{range $index, $block := .}}
+<section>
+  <ul>
+    <li>#{{$index}}</li>
+    <li>Data: {{$block.Data}}</li>
+    <li>Hash: {{$block.Hash}}</li>
+    {{if $block.PreviousHash}}
+    <li>Previous Hash: {{$block.PreviousHash}}</li>
+    {{end}}
+  </ul>
+  <hr />
+</section>
+{{end}}
+{{end}}

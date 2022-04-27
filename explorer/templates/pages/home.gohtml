@@ -1,0 +1,13 @@
+{{define "home"}}
+<!DOCTYPE html>
+<html lang="ko">
+  {{template "head" .PageTitle}}
+  <body>
+    {{template "header" .PageTitle}}
+    <main>
+      {{template "block" .Blocks}}
+    </main>
+  </body>
+  {{template "footer"}}
+</html>
+{{end}}

@@ -1,0 +1,21 @@
+{{define "add"}}
+<!DOCTYPE html>
+<html lang="ko">
+  {{template "head" "Add"}}
+  <body>
+    {{template "header" "Add"}}
+    <main>
+      <form method="POST">
+        <input
+          name="data"
+          type="text"
+          placeholder="data for your block"
+          required
+        />
+        <button type="submit">Add</button>
+      </form>
+    </main>
+  </body>
+  {{template "footer"}}
+</html>
+{{ end }}

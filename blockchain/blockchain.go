@@ -7,9 +7,10 @@ import (
 )
 
 type Block struct {
-	Data         string
-	Hash         string
-	PreviousHash string
+	Height       int    `json:"height"`
+	Data         string `json:"data"`
+	Hash         string `json:"hash"`
+	PreviousHash string `json:"previousHash,omitempty"`
 }
 
 func (b *Block) calculateHash() {
@@ -23,6 +24,10 @@ type blockchain struct {
 
 func (bc *blockchain) GetAllBlocks() []*Block {
 	return bc.blocks
+}
+
+func (bc *blockchain) GetBlock(height int) *Block {
+	return bc.blocks[height-1]
 }
 
 func (bc *blockchain) AddBlock(data string) {
@@ -52,7 +57,12 @@ func getLastHash() string {
 }
 
 func createBlock(data string) *Block {
-	newBlock := Block{data, "", getLastHash()}
+	newBlock := Block{
+		Height:       len(GetBlockChain().GetAllBlocks()) + 1,
+		Data:         data,
+		Hash:         "",
+		PreviousHash: getLastHash(),
+	}
 	newBlock.calculateHash()
 	return &newBlock
 }

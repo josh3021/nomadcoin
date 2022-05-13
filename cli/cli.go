@@ -12,8 +12,9 @@ import (
 func usage() {
 	fmt.Printf("Welcome to 노마드 코인\n\n")
 	fmt.Printf("Please use the following flags:\n\n")
-	fmt.Printf("-port:		Set the PORT of the server\n")
-	fmt.Printf("-mode:		Choose between 'html' and 'rest'\n\n")
+	fmt.Printf("-restPort:		Sets the \"port\" of the REST API SERVER.\n")
+	fmt.Printf("-htmlPort:		Sets the \"port\" of the HTML EXPLORER SERVER.\n")
+	fmt.Printf("-mode:		Choose between \"html\" and \"rest\" and \"both\".\n\n")
 	os.Exit(0)
 }
 
@@ -24,15 +25,19 @@ func Start() {
 
 	// rest := flag.NewFlagSet("rest", flag.ExitOnError)
 	// portFlag := rest.Int("port", 4000, "Sets the port of the server")
-	port := flag.Int("port", 4000, "Sets the port of the server.")
-	mode := flag.String("mode", "rest", "Sets the mode of the server.")
+	restPort := flag.Int("restPort", 4000, "Sets the \"port\" of the REST API SERVER.")
+	htmlPort := flag.Int("htmlPort", 3000, "Sets the \"port\" of the HTML EXPLORER SERVER.")
+	mode := flag.String("mode", "both", "Sets the \"mode\" of the server.")
 	flag.Parse()
 
 	switch *mode {
+	case "both":
+		go rest.Start(*restPort)
+		explorer.Start(*htmlPort)
 	case "rest":
-		rest.Start(*port)
+		rest.Start(*restPort)
 	case "html":
-		explorer.Start(*port)
+		explorer.Start(*htmlPort)
 	default:
 		usage()
 	}

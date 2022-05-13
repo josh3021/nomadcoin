@@ -52,7 +52,6 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Description: "See a Block",
 		},
 	}
-	rw.Header().Add("Content-Type", "application/json")
 	// jsonBytes, err := json.Marshal(description)
 	// utils.HandleErr(err)
 	// fmt.Printf("%s", jsonBytes)
@@ -66,7 +65,6 @@ type addBlockBody struct {
 func blocks(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		rw.Header().Add("Content-Type", "application/json")
 		json.NewEncoder(rw).Encode(blockchain.GetBlockChain().GetAllBlocks())
 	case http.MethodPost:
 		var addBlockBody addBlockBody
@@ -76,17 +74,34 @@ func blocks(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type errorResponse struct {
+	ErrorMessage string `json:"errorMessage"`
+}
+
 func block(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	height, err := strconv.Atoi(vars["height"])
 	utils.HandleErr(err)
-	block := blockchain.GetBlockChain().GetBlock(height)
-	json.NewEncoder(rw).Encode(block)
+	block, err := blockchain.GetBlockChain().GetBlock(height)
+	encoder := json.NewEncoder(rw)
+	if err != nil {
+		encoder.Encode(errorResponse{fmt.Sprint(err)})
+	} else {
+		encoder.Encode(block)
+	}
+}
+
+func jsonContentTypeMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(rw, r)
+	})
 }
 
 func Start(port int) {
-	router := mux.NewRouter()
 	strPort = fmt.Sprintf(":%d", port)
+	router := mux.NewRouter()
+	router.Use(jsonContentTypeMiddleware)
 	router.HandleFunc("/", documentation).Methods(http.MethodGet)
 	router.HandleFunc("/blocks", blocks).Methods(http.MethodGet, http.MethodPost)
 	router.HandleFunc("/blocks/{height:[0-9+]}", block).Methods(http.MethodGet)

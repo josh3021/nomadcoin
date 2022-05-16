@@ -65,11 +65,11 @@ type addBlockBody struct {
 func blocks(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		json.NewEncoder(rw).Encode(blockchain.GetBlockChain().GetAllBlocks())
+		json.NewEncoder(rw).Encode(blockchain.BlockChain().GetAllBlocks())
 	case http.MethodPost:
 		var addBlockBody addBlockBody
 		utils.HandleErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
-		blockchain.GetBlockChain().AddBlock(addBlockBody.Data)
+		blockchain.BlockChain().AddBlock(addBlockBody.Data)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -82,7 +82,7 @@ func block(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	height, err := strconv.Atoi(vars["height"])
 	utils.HandleErr(err)
-	block, err := blockchain.GetBlockChain().GetBlock(height)
+	block, err := blockchain.BlockChain().GetBlock(height)
 	encoder := json.NewEncoder(rw)
 	if err != nil {
 		encoder.Encode(errorResponse{fmt.Sprint(err)})

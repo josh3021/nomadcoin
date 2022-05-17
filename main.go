@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/josh3021/nomadcoin/blockchain"
+	"github.com/josh3021/nomadcoin/cli"
+	"github.com/josh3021/nomadcoin/db"
 )
 
 func main() {
-	blockchain.BlockChain().AddBlock("First")
-	blockchain.BlockChain().AddBlock("Second")
-	blockchain.BlockChain().AddBlock("Third")
+	defer db.Close()
+	cli.Start()
 }

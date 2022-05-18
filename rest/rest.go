@@ -27,6 +27,13 @@ type urlDescription struct {
 	Payload     string `json:"payload,omitempty"`
 }
 
+func jsonContentTypeMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(rw, r)
+	})
+}
+
 func documentation(rw http.ResponseWriter, r *http.Request) {
 	description := []urlDescription{
 		{
@@ -55,32 +62,28 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Method:      http.MethodGet,
 			Description: "See a Block",
 		},
+		{
+			URL:         url("/balance/{address}"),
+			Method:      http.MethodGet,
+			Description: "See balance of address",
+		},
 	}
 	// jsonBytes, err := json.Marshal(description)
 	// utils.HandleErr(err)
 	// fmt.Printf("%s", jsonBytes)
-	json.NewEncoder(rw).Encode(description)
+	utils.HandleErr(json.NewEncoder(rw).Encode(description))
 }
 
-func jsonContentTypeMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Add("Content-Type", "application/json")
-		next.ServeHTTP(rw, r)
-	})
-}
-
-type addBlockBody struct {
-	Data string
+func status(rw http.ResponseWriter, r *http.Request) {
+	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain()))
 }
 
 func blocks(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks())
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks()))
 	case http.MethodPost:
-		var addBlockBody addBlockBody
-		utils.HandleErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
-		blockchain.Blockchain().AddBlock(addBlockBody.Data)
+		blockchain.Blockchain().AddBlock()
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -95,16 +98,49 @@ func block(rw http.ResponseWriter, r *http.Request) {
 	block, err := blockchain.FindBlock(hash)
 	encoder := json.NewEncoder(rw)
 	if err != nil {
-		encoder.Encode(errorResponse{fmt.Sprint(err)})
+		utils.HandleErr(encoder.Encode(errorResponse{fmt.Sprint(err)}))
 	} else {
-		encoder.Encode(block)
+		utils.HandleErr(encoder.Encode(block))
 	}
 }
 
-func status(rw http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(rw).Encode(blockchain.Blockchain())
+type balanceResponse struct {
+	Address string `json:"address"`
+	Balance int    `json:"balance"`
 }
 
+func balance(rw http.ResponseWriter, r *http.Request) {
+	address := mux.Vars(r)["address"]
+	total := r.URL.Query().Get("total")
+	switch total {
+	case "true":
+		balance := blockchain.Blockchain().BalanceByAddress(address)
+		utils.HandleErr(json.NewEncoder(rw).Encode(balanceResponse{address, balance}))
+	default:
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain().TxOutsByAddress(address)))
+	}
+}
+
+func mempool(rw http.ResponseWriter, r *http.Request) {
+	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
+}
+
+type addTxPayload struct {
+	To     string `json:"to"`
+	Amount int    `json:"amount"`
+}
+
+func transactions(rw http.ResponseWriter, r *http.Request) {
+	var payload addTxPayload
+	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
+	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
+	if err != nil {
+		utils.HandleErr(json.NewEncoder(rw).Encode(errorResponse{err.Error()}))
+	}
+	rw.WriteHeader(http.StatusCreated)
+}
+
+// Start REST API Server
 func Start(port int) {
 	strPort = fmt.Sprintf(":%d", port)
 	router := mux.NewRouter()
@@ -113,6 +149,9 @@ func Start(port int) {
 	router.HandleFunc("/status", status).Methods(http.MethodGet)
 	router.HandleFunc("/blocks", blocks).Methods(http.MethodGet, http.MethodPost)
 	router.HandleFunc("/blocks/{hash:[0-9a-f]+}", block).Methods(http.MethodGet)
+	router.HandleFunc("/balance/{address}", balance).Methods(http.MethodGet)
+	router.HandleFunc("/mempool", mempool).Methods(http.MethodGet)
+	router.HandleFunc("/transactions", transactions).Methods(http.MethodPost)
 	fmt.Printf("📃 REST is Listening on http://localhost:%d\n", port)
 	log.Fatal(http.ListenAndServe(strPort, router))
 }

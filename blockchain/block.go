@@ -14,16 +14,18 @@ const (
 	prefixTarget string = "0"
 )
 
+// ErrNotFound returns ERROR if block not found.
 var ErrNotFound = errors.New("block not found")
 
+// Block is struct of the block in the blockchain.
 type Block struct {
-	Data         string `json:"data"`
+	Height       int    `json:"height"`
 	Hash         string `json:"hash"`
 	PreviousHash string `json:"previousHash,omitempty"`
-	Height       int    `json:"height"`
 	Difficulty   int    `json:"difficulty"`
 	Nonce        int    `json:"nonce"`
 	Timestamp    int    `json:"timestamp"`
+	Transactions []*Tx  `json:"transactions"`
 }
 
 func (b *Block) persist() {
@@ -38,16 +40,16 @@ func (b *Block) mine() {
 	prefix := strings.Repeat(prefixTarget, b.Difficulty)
 	for {
 		hash := utils.Hash(b)
-		fmt.Printf("hash: %s\n, nonce: %d\n", hash, b.Nonce)
 		if strings.HasPrefix(hash, prefix) {
 			b.Timestamp = int(time.Now().Unix())
 			b.Hash = hash
 			break
 		}
-		b.Nonce += 1
+		b.Nonce++
 	}
 }
 
+// FindBlock finds and returns block in database
 func FindBlock(hash string) (*Block, error) {
 	blockBytes := db.Block(hash)
 	if blockBytes == nil {
@@ -58,16 +60,17 @@ func FindBlock(hash string) (*Block, error) {
 	return block, nil
 }
 
-func createBlock(data string, previousHash string, height int) *Block {
+func createBlock(previousHash string, height int) *Block {
 	block := &Block{
-		Data:         data,
 		Hash:         "",
 		PreviousHash: previousHash,
 		Height:       height,
 		Difficulty:   Blockchain().Difficulty(),
 		Nonce:        0,
+		Transactions: []*Tx{makeCoinbaseTx("me")},
 	}
 	block.mine()
+	fmt.Printf("\nHeight: %d\nHash: %s\nDifficulty: %d\nNonce: %d\n\n", block.Height, block.Hash, block.Difficulty, block.Nonce)
 	block.persist()
 	return block
 }

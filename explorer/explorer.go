@@ -30,12 +30,13 @@ func add(w http.ResponseWriter, r *http.Request) {
 		templates.ExecuteTemplate(w, "add", nil)
 	case http.MethodPost:
 		r.ParseForm()
-		data := r.Form.Get("data")
-		blockchain.Blockchain().AddBlock(data)
+		// data := r.Form.Get("data")
+		blockchain.Blockchain().AddBlock()
 		http.Redirect(w, r, "/", http.StatusPermanentRedirect)
 	}
 }
 
+// Start Explorer Server
 func Start(port int) {
 	handler := http.NewServeMux()
 	templates = template.Must(template.ParseGlob(templateDir + "pages/*.gohtml"))

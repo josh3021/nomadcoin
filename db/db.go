@@ -15,6 +15,7 @@ const (
 
 var db *bolt.DB
 
+// DB returns database (Initialize database if it does not initialized).
 func DB() *bolt.DB {
 	if db == nil {
 		dbPointer, err := bolt.Open(dbName, 0600, nil)
@@ -31,10 +32,12 @@ func DB() *bolt.DB {
 	return db
 }
 
+// Close Database.
 func Close() {
 	DB().Close()
 }
 
+// SaveBlock saves the block in database.
 func SaveBlock(hash string, data []byte) {
 	err := DB().Update(func(t *bolt.Tx) error {
 		bucket := t.Bucket([]byte(blocksBucket))
@@ -44,6 +47,7 @@ func SaveBlock(hash string, data []byte) {
 	utils.HandleErr(err)
 }
 
+// SaveBlockchain saves the blockchain in database.
 func SaveBlockchain(data []byte) {
 	err := DB().Update(func(t *bolt.Tx) error {
 		bucket := t.Bucket([]byte(dataBucket))
@@ -53,6 +57,7 @@ func SaveBlockchain(data []byte) {
 	utils.HandleErr(err)
 }
 
+// Checkpoint returns the checkpoint from database
 func Checkpoint() []byte {
 	var data []byte
 	DB().View(func(t *bolt.Tx) error {
@@ -63,6 +68,7 @@ func Checkpoint() []byte {
 	return data
 }
 
+// Block returns the block from database
 func Block(hash string) []byte {
 	var data []byte
 	DB().View(func(t *bolt.Tx) error {

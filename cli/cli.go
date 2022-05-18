@@ -19,6 +19,7 @@ func usage() {
 	runtime.Goexit()
 }
 
+// Start CLI.
 func Start() {
 	if len(os.Args) == 1 {
 		usage()

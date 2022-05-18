@@ -31,8 +31,8 @@ func (b *blockchain) persist() {
 	db.SaveBlockchain(utils.ToBytes(b))
 }
 
-func (b *blockchain) AddBlock(data string) {
-	block := createBlock(data, b.NewestHash, b.Height+1)
+func (b *blockchain) AddBlock() {
+	block := createBlock(b.NewestHash, b.Height+1)
 	b.NewestHash = block.Hash
 	b.Height = block.Height
 	b.CurrentDifficulty = block.Difficulty
@@ -79,7 +79,39 @@ func (b *blockchain) Blocks() []*Block {
 	return blocks
 }
 
-func Blockchain() *blockchain {
+func (b *blockchain) txOuts() []*TxOut {
+	var txOuts []*TxOut
+	blocks := b.Blocks()
+	for _, block := range blocks {
+		for _, tx := range block.Transactions {
+			txOuts = append(txOuts, tx.TxOuts...)
+		}
+	}
+	return txOuts
+}
+
+func (b *blockchain) TxOutsByAddress(address string) []*TxOut {
+	var ownedTxOuts []*TxOut
+	txOuts := b.txOuts()
+	for _, txOut := range txOuts {
+		if txOut.Owner == address {
+			ownedTxOuts = append(ownedTxOuts, txOut)
+		}
+	}
+	return ownedTxOuts
+}
+
+func (b *blockchain) BalanceByAddress(address string) int {
+	var balance int
+	ownedTxOuts := b.TxOutsByAddress(address)
+	for _, ownedTxOut := range ownedTxOuts {
+		balance += ownedTxOut.Amount
+	}
+	return balance
+}
+
+// Blockchain returns blockchain (Initialize blockchain if it does not initialized).
+func Blockchain() *blockchain { //nolint:golint
 	if b == nil {
 		once.Do(func() {
 			b = &blockchain{
@@ -87,7 +119,7 @@ func Blockchain() *blockchain {
 			}
 			checkpoint := db.Checkpoint()
 			if checkpoint == nil {
-				b.AddBlock("Genesis")
+				b.AddBlock()
 			} else {
 				b.restore(checkpoint)
 			}

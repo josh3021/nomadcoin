@@ -69,7 +69,7 @@ func Checkpoint() []byte {
 }
 
 // Block returns the block from database
-func Block(hash string) []byte {
+func FindBlock(hash string) []byte {
 	var data []byte
 	DB().View(func(t *bolt.Tx) error {
 		bucket := t.Bucket([]byte(blocksBucket))

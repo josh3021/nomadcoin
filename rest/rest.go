@@ -67,6 +67,16 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Method:      http.MethodGet,
 			Description: "See balance of address",
 		},
+		{
+			URL:         url("/mempool"),
+			Method:      http.MethodGet,
+			Description: "Show Transactions in mempool",
+		},
+		{
+			URL:         url("/transactions"),
+			Method:      http.MethodPost,
+			Description: "Create Transaction",
+		},
 	}
 	// jsonBytes, err := json.Marshal(description)
 	// utils.HandleErr(err)
@@ -81,7 +91,7 @@ func status(rw http.ResponseWriter, r *http.Request) {
 func blocks(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks()))
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blocks(blockchain.Blockchain())))
 	case http.MethodPost:
 		blockchain.Blockchain().AddBlock()
 		rw.WriteHeader(http.StatusCreated)
@@ -112,12 +122,13 @@ type balanceResponse struct {
 func balance(rw http.ResponseWriter, r *http.Request) {
 	address := mux.Vars(r)["address"]
 	total := r.URL.Query().Get("total")
+	bc := blockchain.Blockchain()
 	switch total {
 	case "true":
-		balance := blockchain.Blockchain().BalanceByAddress(address)
+		balance := blockchain.GetBalanceByAddress(bc, address)
 		utils.HandleErr(json.NewEncoder(rw).Encode(balanceResponse{address, balance}))
 	default:
-		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain().TxOutsByAddress(address)))
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.UTxOutsByAddress(bc, address)))
 	}
 }
 

@@ -10,7 +10,7 @@ GET http://localhost:4000/blocks/2
 ###
 GET http://localhost:4000/balance/winter
 ###
-GET http://localhost:4000/balance/me
+GET http://localhost:4000/balance/e5737b17850f22a074586ac3b980f46936a35d8f68f963ba3e6e1c383d353618298580c80148df7b6ef4b980d9649fa0019c62e72824d9c8edb806ee9d3a1913
 ###
 GET http://localhost:4000/mempool
 ###
@@ -18,5 +18,5 @@ POST http://localhost:4000/transactions
 
 {
   "to": "winter",
-  "amount": 79
+  "amount": 40
 }

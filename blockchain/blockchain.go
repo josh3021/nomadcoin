@@ -87,13 +87,16 @@ func UTxOutsByAddress(b *blockchain, address string) []*UTxOut {
 	for _, block := range Blocks(b) {
 		for _, tx := range block.Transactions {
 			for _, txIn := range tx.TxIns {
-				if txIn.Owner == address {
+				if txIn.Signature == "COINBASE" {
+					break
+				}
+				if FindTx(b, txIn.TxID).TxOuts[txIn.Index].Address == address {
 					creatorTxs[txIn.TxID] = true
 				}
 			}
 
 			for index, txOut := range tx.TxOuts {
-				if txOut.Owner == address {
+				if txOut.Address == address {
 					if _, ok := creatorTxs[tx.ID]; !ok {
 						uTxOut := &UTxOut{
 							TxID:   tx.ID,
@@ -119,6 +122,25 @@ func GetBalanceByAddress(b *blockchain, address string) int {
 		balance += ownedTxOut.Amount
 	}
 	return balance
+}
+
+// Txs return all transactions
+func Txs(b *blockchain) []*Tx {
+	var txs []*Tx
+	for _, block := range Blocks(b) {
+		txs = append(txs, block.Transactions...)
+	}
+	return txs
+}
+
+// FindTx returns tx that want
+func FindTx(b *blockchain, targetTxID string) *Tx {
+	for _, tx := range Txs(b) {
+		if tx.ID == targetTxID {
+			return tx
+		}
+	}
+	return nil
 }
 
 // Blockchain returns blockchain (Initialize blockchain if it does not initialized).

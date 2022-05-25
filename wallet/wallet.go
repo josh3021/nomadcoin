@@ -1,39 +1,103 @@
 package wallet
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
-	"fmt"
-	"math/big"
+	"os"
 
 	"github.com/josh3021/nomadcoin/utils"
 )
 
-const (
-	signature     string = "a30f035c8d44dea5c1355a963e18e0a9426622cb3467f8b553538099ffab6fabc775b6d9a9014cd01be0436c980cf6deec7e4cacaa0258d7ecc3e77c329ab773"
-	privateKey    string = "307702010104204eb9438b09d338be90fdc55d9391d4d5e10f620ca458818a3941e0bd400c2514a00a06082a8648ce3d030107a14403420004cf39c60bcf171dfdb10d9d51345558c522169e23f4c148c80658cac50303f0e7d410fe4990f2835793ab6fc5f53d81260346deb6dc38d2041f35d88c31f7fd9c"
-	hashedMessage string = "1c5863cd55b5a4413fd59f054af57ba3c75c0698b3851d70f99b8de2d5c7338f"
-)
+type wallet struct {
+	privateKey *ecdsa.PrivateKey
+	Address    string
+}
 
-// Start starts wallet
-func Start() {
-	privateKeyBytes, err := hex.DecodeString(privateKey)
+const walletFilename string = "nomadcoin.wallet"
+
+var w *wallet
+
+func hasWalletFile() bool {
+	_, err := os.Stat(walletFilename)
+	return os.IsExist(err)
+}
+
+func createPrivateKey() *ecdsa.PrivateKey {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	utils.HandleErr(err)
-	privateKey, err := x509.ParseECPrivateKey(privateKeyBytes)
+	return privateKey
+}
+
+func persistPrivateKey(privateKeyBytes []byte) {
+	err := os.WriteFile(walletFilename, privateKeyBytes, 0644)
 	utils.HandleErr(err)
-	fmt.Println(privateKey.D)
+}
 
-	signatureBytes, err := hex.DecodeString(signature)
+func readWalletFile() []byte {
+	walletBytes, err := os.ReadFile(walletFilename)
 	utils.HandleErr(err)
-	half := len(signatureBytes) / 2
-	rBytes := signatureBytes[:half]
-	sBytes := signatureBytes[half:]
+	return walletBytes
+}
 
-	var bigR, bigS = big.Int{}, big.Int{}
+func marshalWalletBytes(privateKey *ecdsa.PrivateKey) []byte {
+	privateKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	utils.HandleErr(err)
+	return privateKeyBytes
+}
 
-	bigR.SetBytes(rBytes)
-	bigS.SetBytes(sBytes)
+func parseWalletBytes(bytes []byte) *ecdsa.PrivateKey {
+	privateKey, err := x509.ParseECPrivateKey(bytes)
+	utils.HandleErr(err)
+	return privateKey
+}
 
-	fmt.Println(bigR)
-	fmt.Println(bigS)
+func parseAddress(privateKey *ecdsa.PrivateKey) string {
+	return utils.EncodeBigInts(privateKey.X, privateKey.Y)
+}
+
+func Sign(payload string, wallet *wallet) string {
+	payloadBytes, err := hex.DecodeString(payload)
+	utils.HandleErr(err)
+	r, s, err := ecdsa.Sign(rand.Reader, wallet.privateKey, payloadBytes)
+	utils.HandleErr(err)
+	// signature
+	return utils.EncodeBigInts(r, s)
+}
+
+// Verify verfies signature
+func Verify(signature, payload, address string) bool {
+	r, s, err := utils.RestoreBigInts(signature)
+	utils.HandleErr(err)
+	x, y, err := utils.RestoreBigInts(address)
+	utils.HandleErr(err)
+	publicKey := ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     x,
+		Y:     y,
+	}
+	payloadBytes, err := hex.DecodeString(payload)
+	utils.HandleErr(err)
+	return ecdsa.Verify(&publicKey, payloadBytes, r, s)
+}
+
+// Wallet returns wallet (Initialize wallet if it does not initialized).
+func Wallet() *wallet {
+	if w == nil {
+		w = &wallet{}
+		if hasWalletFile() {
+			walletBytes := readWalletFile()
+			privateKey := parseWalletBytes(walletBytes)
+			w.privateKey = privateKey
+		} else {
+			privateKey := createPrivateKey()
+			privateKeyBytes := marshalWalletBytes(privateKey)
+			persistPrivateKey(privateKeyBytes)
+			w.privateKey = privateKey
+		}
+		w.Address = parseAddress(w.privateKey)
+	}
+	return w
 }

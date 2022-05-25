@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/josh3021/nomadcoin/utils"
+	"github.com/josh3021/nomadcoin/wallet"
 )
 
 const minerReward int = 50
@@ -17,21 +18,17 @@ type Tx struct {
 	TxOuts    []*TxOut `json:"txOuts"`
 }
 
-func (tx *Tx) getID() {
-	tx.ID = utils.Hash(tx)
-}
-
 // TxIn contains information of transactions input
 type TxIn struct {
-	TxID  string `json:"txId"`
-	Index int    `json:"index"`
-	Owner string `json:"owner"`
+	TxID      string `json:"txId"`
+	Index     int    `json:"index"`
+	Signature string `json:"signature"`
 }
 
 // TxOut contains information of transactions Output
 type TxOut struct {
-	Owner  string
-	Amount int
+	Address string `json:"address"`
+	Amount  int    `json:"amount"`
 }
 
 // UTxOut contains information of Unconfirmed transactions Output
@@ -41,12 +38,22 @@ type UTxOut struct {
 	Amount int    `json:"amount"`
 }
 
+func (tx *Tx) getID() {
+	tx.ID = utils.Hash(tx)
+}
+
+func (tx *Tx) sign() {
+	for _, txIn := range tx.TxIns {
+		txIn.Signature = wallet.Sign(tx.ID, wallet.Wallet())
+	}
+}
+
 type mempool struct {
-	Txs []*Tx
+	Txs []*Tx `json:"txs"`
 }
 
 func (m *mempool) AddTx(to string, amount int) error {
-	tx, err := makeTx("me", to, amount)
+	tx, err := makeTx(wallet.Wallet().Address, to, amount)
 	if err != nil {
 		return err
 	}
@@ -55,7 +62,7 @@ func (m *mempool) AddTx(to string, amount int) error {
 }
 
 func (m *mempool) ConfirmTxs() []*Tx {
-	coinbase := makeCoinbaseTx("me")
+	coinbase := makeCoinbaseTx(wallet.Wallet().Address)
 	txs := m.Txs
 	txs = append(txs, coinbase)
 	m.Txs = nil
@@ -79,9 +86,29 @@ Outer:
 	return exists
 }
 
+func validate(tx *Tx) bool {
+	valid := true
+	for _, txIn := range tx.TxIns {
+		prevTx := FindTx(Blockchain(), txIn.TxID)
+		if prevTx == nil {
+			valid = false
+			break
+		}
+		address := prevTx.TxOuts[txIn.Index].Address
+		valid = wallet.Verify(txIn.Signature, tx.ID, address)
+		if !valid {
+			break
+		}
+	}
+	return valid
+}
+
+var errorNotEnoghMoney = errors.New("not enough money")
+var errorTxNotValid = errors.New("tx not valid")
+
 func makeTx(from, to string, amount int) (*Tx, error) {
 	if GetBalanceByAddress(Blockchain(), from) < amount {
-		return nil, errors.New("not enough money")
+		return nil, errorNotEnoghMoney
 	}
 	var txIns []*TxIn
 	var txOuts []*TxOut
@@ -91,28 +118,33 @@ func makeTx(from, to string, amount int) (*Tx, error) {
 		if total >= amount {
 			break
 		}
-		txIn := &TxIn{TxID: uTxOut.TxID, Index: uTxOut.Index, Owner: from}
+		txIn := &TxIn{TxID: uTxOut.TxID, Index: uTxOut.Index, Signature: from}
 		txIns = append(txIns, txIn)
 		total += uTxOut.Amount
 	}
 
 	// 거스름돈
 	if change := total - amount; change != 0 {
-		changeTxOut := &TxOut{Owner: from, Amount: change}
+		changeTxOut := &TxOut{Address: from, Amount: change}
 		txOuts = append(txOuts, changeTxOut)
 	}
-	txOut := &TxOut{Owner: to, Amount: amount}
+	txOut := &TxOut{Address: to, Amount: amount}
 	txOuts = append(txOuts, txOut)
 	tx := &Tx{ID: "", Timestamp: int(time.Now().Unix()), TxIns: txIns, TxOuts: txOuts}
+	tx.getID()
+	tx.sign()
+	if !validate(tx) {
+		return nil, errorTxNotValid
+	}
 	return tx, nil
 }
 
 func makeCoinbaseTx(address string) *Tx {
 	txIns := []*TxIn{
-		{Owner: "COINBASE", TxID: "", Index: -1},
+		{Signature: "COINBASE", TxID: "", Index: -1},
 	}
 	txOuts := []*TxOut{
-		{Owner: address, Amount: minerReward},
+		{Address: address, Amount: minerReward},
 	}
 	tx := Tx{
 		ID:        "",

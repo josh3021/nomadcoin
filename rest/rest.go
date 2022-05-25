@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/josh3021/nomadcoin/blockchain"
 	"github.com/josh3021/nomadcoin/utils"
+	"github.com/josh3021/nomadcoin/wallet"
 )
 
 var strPort string
@@ -71,6 +72,11 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			URL:         url("/mempool"),
 			Method:      http.MethodGet,
 			Description: "Show Transactions in mempool",
+		},
+		{
+			URL:         url("/wallet"),
+			Method:      http.MethodGet,
+			Description: "Show my wallet",
 		},
 		{
 			URL:         url("/transactions"),
@@ -136,6 +142,15 @@ func mempool(rw http.ResponseWriter, r *http.Request) {
 	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
 }
 
+type myWalletResponse struct {
+	Address string `json:"address"`
+}
+
+func myWallet(rw http.ResponseWriter, r *http.Request) {
+	address := wallet.Wallet().Address
+	json.NewEncoder(rw).Encode(myWalletResponse{Address: address})
+}
+
 type addTxPayload struct {
 	To     string `json:"to"`
 	Amount int    `json:"amount"`
@@ -146,7 +161,9 @@ func transactions(rw http.ResponseWriter, r *http.Request) {
 	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
 	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
 	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
 		utils.HandleErr(json.NewEncoder(rw).Encode(errorResponse{err.Error()}))
+		return
 	}
 	rw.WriteHeader(http.StatusCreated)
 }
@@ -162,6 +179,7 @@ func Start(port int) {
 	router.HandleFunc("/blocks/{hash:[0-9a-f]+}", block).Methods(http.MethodGet)
 	router.HandleFunc("/balance/{address}", balance).Methods(http.MethodGet)
 	router.HandleFunc("/mempool", mempool).Methods(http.MethodGet)
+	router.HandleFunc("/wallet", myWallet).Methods(http.MethodGet)
 	router.HandleFunc("/transactions", transactions).Methods(http.MethodPost)
 	fmt.Printf("📃 REST is Listening on http://localhost:%d\n", port)
 	log.Fatal(http.ListenAndServe(strPort, router))

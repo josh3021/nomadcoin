@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/josh3021/nomadcoin/blockchain"
+	"github.com/josh3021/nomadcoin/p2p"
 	"github.com/josh3021/nomadcoin/utils"
 	"github.com/josh3021/nomadcoin/wallet"
 )
@@ -31,6 +32,13 @@ type urlDescription struct {
 func jsonContentTypeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(rw, r)
+	})
+}
+
+func loggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Println(r.URL)
 		next.ServeHTTP(rw, r)
 	})
 }
@@ -82,6 +90,11 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			URL:         url("/transactions"),
 			Method:      http.MethodPost,
 			Description: "Create Transaction",
+		},
+		{
+			URL:         url("ws"),
+			Method:      http.MethodGet,
+			Description: "WS",
 		},
 	}
 	// jsonBytes, err := json.Marshal(description)
@@ -172,7 +185,7 @@ func transactions(rw http.ResponseWriter, r *http.Request) {
 func Start(port int) {
 	strPort = fmt.Sprintf(":%d", port)
 	router := mux.NewRouter()
-	router.Use(jsonContentTypeMiddleware)
+	router.Use(jsonContentTypeMiddleware, loggerMiddleware)
 	router.HandleFunc("/", documentation).Methods(http.MethodGet)
 	router.HandleFunc("/status", status).Methods(http.MethodGet)
 	router.HandleFunc("/blocks", blocks).Methods(http.MethodGet, http.MethodPost)
@@ -181,6 +194,7 @@ func Start(port int) {
 	router.HandleFunc("/mempool", mempool).Methods(http.MethodGet)
 	router.HandleFunc("/wallet", myWallet).Methods(http.MethodGet)
 	router.HandleFunc("/transactions", transactions).Methods(http.MethodPost)
+	router.HandleFunc("/ws", p2p.Upgrade).Methods(http.MethodGet)
 	fmt.Printf("📃 REST is Listening on http://localhost:%d\n", port)
 	log.Fatal(http.ListenAndServe(strPort, router))
 }

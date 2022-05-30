@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/josh3021/nomadcoin/explorer"
 	"github.com/josh3021/nomadcoin/rest"
@@ -16,7 +15,7 @@ func usage() {
 	fmt.Printf("-restPort:		Sets the \"port\" of the REST API SERVER.\n")
 	fmt.Printf("-htmlPort:		Sets the \"port\" of the HTML EXPLORER SERVER.\n")
 	fmt.Printf("-mode:		Choose between \"html\" and \"rest\" and \"both\".\n\n")
-	runtime.Goexit()
+	os.Exit(0)
 }
 
 // Start CLI.

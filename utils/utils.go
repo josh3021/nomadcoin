@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strings"
 )
 
 func HandleErr(err error) {
@@ -51,4 +52,12 @@ func RestoreBigInts(payload string) (*big.Int, *big.Int, error) {
 	bigA.SetBytes(firstHalfBytes)
 	bigB.SetBytes(secondHalfBytes)
 	return &bigA, &bigB, nil
+}
+
+func Splitter(s, sep string, index int) string {
+	r := strings.Split(s, sep)
+	if len(r)-1 < index {
+		return ""
+	}
+	return r[index]
 }

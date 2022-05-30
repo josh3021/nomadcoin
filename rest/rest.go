@@ -13,12 +13,12 @@ import (
 	"github.com/josh3021/nomadcoin/wallet"
 )
 
-var strPort string
+var port string
 
 type url string
 
 func (u url) MarshalText() ([]byte, error) {
-	murl := fmt.Sprintf("http://localhost%s%s", strPort, u)
+	murl := fmt.Sprintf("http://localhost:%s%s", port, u)
 	return []byte(murl), nil
 }
 
@@ -181,9 +181,26 @@ func transactions(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusCreated)
 }
 
+type addPeerPayload struct {
+	Address string
+	Port    string
+}
+
+func peers(rw http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		json.NewEncoder(rw).Encode(p2p.Peers)
+	case http.MethodPost:
+		var payload addPeerPayload
+		json.NewDecoder(r.Body).Decode(&payload)
+		p2p.AddPeer(payload.Address, payload.Port, port)
+		rw.WriteHeader(http.StatusCreated)
+	}
+}
+
 // Start REST API Server
-func Start(port int) {
-	strPort = fmt.Sprintf(":%d", port)
+func Start(inputPort int) {
+	port = fmt.Sprintf("%d", inputPort)
 	router := mux.NewRouter()
 	router.Use(jsonContentTypeMiddleware, loggerMiddleware)
 	router.HandleFunc("/", documentation).Methods(http.MethodGet)
@@ -195,6 +212,7 @@ func Start(port int) {
 	router.HandleFunc("/wallet", myWallet).Methods(http.MethodGet)
 	router.HandleFunc("/transactions", transactions).Methods(http.MethodPost)
 	router.HandleFunc("/ws", p2p.Upgrade).Methods(http.MethodGet)
-	fmt.Printf("📃 REST is Listening on http://localhost:%d\n", port)
-	log.Fatal(http.ListenAndServe(strPort, router))
+	router.HandleFunc("/peers", peers).Methods(http.MethodGet, http.MethodPost)
+	fmt.Printf("📃 REST is Listening on http://localhost:%s\n", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
 }

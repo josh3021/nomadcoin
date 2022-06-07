@@ -11,10 +11,11 @@ type blockchain struct {
 	NewestHash        string `json:"newestHash"`
 	Height            int    `json:"height"`
 	CurrentDifficulty int    `json:"currentDifficulty"`
+	m                 sync.Mutex
 }
 
 const (
-	defaultDifficulty  int = 5
+	defaultDifficulty  int = 4
 	difficultyInterval int = 5
 	blockInterval      int = 2
 	allowedRange       int = 2
@@ -27,12 +28,39 @@ func (b *blockchain) restore(data []byte) {
 	utils.FromBytes(b, data)
 }
 
-func (b *blockchain) AddBlock() {
+func (b *blockchain) AddBlock() *Block {
+	// b.m.Lock()
+	// defer b.m.Unlock()
 	block := createBlock(b.NewestHash, b.Height+1, getDifficulty(b))
 	b.NewestHash = block.Hash
 	b.Height = block.Height
 	b.CurrentDifficulty = block.Difficulty
 	persistBlockchain(b)
+	return block
+}
+
+func (b *blockchain) Replace(newBlocks []*Block) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.Height = len(newBlocks)
+	b.CurrentDifficulty = newBlocks[0].Difficulty
+	b.NewestHash = newBlocks[0].Hash
+	persistBlockchain(b)
+	db.EmptyBlocks()
+	for _, block := range newBlocks {
+		persistBlock(block)
+	}
+}
+
+func (b *blockchain) AddPeerBlock(block *Block) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.Height++
+	b.CurrentDifficulty = block.Difficulty
+	b.NewestHash = block.Hash
+
+	persistBlockchain(b)
+	persistBlock(block)
 }
 
 func persistBlockchain(b *blockchain) {
@@ -66,6 +94,8 @@ func getDifficulty(b *blockchain) int {
 
 // Blocks returns all blocks
 func Blocks(b *blockchain) []*Block {
+	b.m.Lock()
+	defer b.m.Unlock()
 	var blocks []*Block
 	hashCursor := b.NewestHash
 	for {
@@ -141,6 +171,12 @@ func FindTx(b *blockchain, targetTxID string) *Tx {
 		}
 	}
 	return nil
+}
+
+func Status() *blockchain {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b
 }
 
 // Blockchain returns blockchain (Initialize blockchain if it does not initialized).

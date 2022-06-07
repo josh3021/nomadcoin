@@ -3,8 +3,8 @@ module github.com/josh3021/nomadcoin
 go 1.18
 
 require (
-	github.com/boltdb/bolt v1.3.1
 	github.com/gorilla/mux v1.8.0
+	go.etcd.io/bbolt v1.3.6
 )
 
 require (

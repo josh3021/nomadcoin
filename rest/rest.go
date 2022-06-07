@@ -38,7 +38,7 @@ func jsonContentTypeMiddleware(next http.Handler) http.Handler {
 
 func loggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		fmt.Println(r.URL)
+		fmt.Printf("Client Connected: http://localhost:%s%s\n", port, r.URL)
 		next.ServeHTTP(rw, r)
 	})
 }
@@ -104,7 +104,7 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 }
 
 func status(rw http.ResponseWriter, r *http.Request) {
-	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blockchain()))
+	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Status()))
 }
 
 func blocks(rw http.ResponseWriter, r *http.Request) {
@@ -112,7 +112,8 @@ func blocks(rw http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blocks(blockchain.Blockchain())))
 	case http.MethodPost:
-		blockchain.Blockchain().AddBlock()
+		newBlock := blockchain.Blockchain().AddBlock()
+		p2p.BroadcastNewMessage(newBlock)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -189,7 +190,7 @@ type addPeerPayload struct {
 func peers(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		json.NewEncoder(rw).Encode(p2p.Peers)
+		json.NewEncoder(rw).Encode(p2p.AllPeers(&p2p.Peers))
 	case http.MethodPost:
 		var payload addPeerPayload
 		json.NewDecoder(r.Body).Decode(&payload)

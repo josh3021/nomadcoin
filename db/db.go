@@ -1,12 +1,16 @@
 package db
 
 import (
-	"github.com/boltdb/bolt"
+	"fmt"
+	"os"
+
 	"github.com/josh3021/nomadcoin/utils"
+	bolt "go.etcd.io/bbolt"
 )
 
 const (
-	dbName       = "blockchain.db"
+	dbName       = "blockchain"
+	dbExtName    = ".db"
 	dataBucket   = "data"
 	blocksBucket = "blocks"
 
@@ -15,10 +19,15 @@ const (
 
 var db *bolt.DB
 
+func getDBName() string {
+	port := os.Args[2][10:]
+	return fmt.Sprintf("%s_%s%s", dbName, port, dbExtName)
+}
+
 // DB returns database (Initialize database if it does not initialized).
 func DB() *bolt.DB {
 	if db == nil {
-		dbPointer, err := bolt.Open(dbName, 0600, nil)
+		dbPointer, err := bolt.Open(getDBName(), 0600, nil)
 		db = dbPointer
 		utils.HandleErr(err)
 		err = db.Update(func(t *bolt.Tx) error {
@@ -68,7 +77,7 @@ func Checkpoint() []byte {
 	return data
 }
 
-// Block returns the block from database
+// FindBlock returns the block from database
 func FindBlock(hash string) []byte {
 	var data []byte
 	DB().View(func(t *bolt.Tx) error {
@@ -77,4 +86,14 @@ func FindBlock(hash string) []byte {
 		return nil
 	})
 	return data
+}
+
+// EmptyBlocks delete and recreate blocksBucket
+func EmptyBlocks() {
+	DB().Update(func(tx *bolt.Tx) error {
+		utils.HandleErr(tx.DeleteBucket([]byte(blocksBucket)))
+		_, err := tx.CreateBucket([]byte(blocksBucket))
+		utils.HandleErr(err)
+		return nil
+	})
 }

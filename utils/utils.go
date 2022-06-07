@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -15,6 +16,12 @@ func HandleErr(err error) {
 	if err != nil {
 		log.Panic(err)
 	}
+}
+
+func ToJSON(i interface{}) []byte {
+	d, err := json.Marshal(i)
+	HandleErr(err)
+	return d
 }
 
 func ToBytes(i interface{}) []byte {

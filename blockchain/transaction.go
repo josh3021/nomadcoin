@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/josh3021/nomadcoin/utils"
@@ -49,33 +50,55 @@ func (tx *Tx) sign() {
 }
 
 type mempool struct {
-	Txs []*Tx `json:"txs"`
+	// Txs []*Tx `json:"txs"`
+	Txs map[string]*Tx `json:"txs"`
+	m   sync.Mutex
 }
 
-func (m *mempool) AddTx(to string, amount int) error {
+func (m *mempool) AddTx(to string, amount int) (*Tx, error) {
 	tx, err := makeTx(wallet.Wallet().Address, to, amount)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	m.Txs = append(m.Txs, tx)
-	return nil
+	// m.Txs = append(m.Txs, tx)
+	m.Txs[tx.ID] = tx
+	return tx, nil
 }
 
 func (m *mempool) ConfirmTxs() []*Tx {
 	coinbase := makeCoinbaseTx(wallet.Wallet().Address)
-	txs := m.Txs
+	var txs []*Tx
+	for _, tx := range m.Txs {
+		txs = append(txs, tx)
+	}
 	txs = append(txs, coinbase)
-	m.Txs = nil
+	m.Txs = make(map[string]*Tx)
 	return txs
 }
 
 // Mempool contains not confirmed transactions
-var Mempool *mempool = &mempool{}
+var m *mempool
+var memOnce sync.Once
+
+func Mempool() *mempool {
+	memOnce.Do(func() {
+		m = &mempool{Txs: make(map[string]*Tx)}
+	})
+	return m
+}
+
+func MempoolStatus() *mempool {
+	mem := Mempool()
+	mem.m.Lock()
+	defer mem.m.Unlock()
+
+	return mem
+}
 
 func isOnMempool(uTxOut *UTxOut) bool {
 	exists := false
 Outer:
-	for _, tx := range Mempool.Txs {
+	for _, tx := range Mempool().Txs {
 		for _, txIn := range tx.TxIns {
 			if txIn.TxID == uTxOut.TxID && txIn.Index == uTxOut.Index {
 				exists = true
@@ -154,4 +177,11 @@ func makeCoinbaseTx(address string) *Tx {
 	}
 	tx.getID()
 	return &tx
+}
+
+func (b *blockchain) AddPeerTx(tx *Tx) {
+	m.m.Lock()
+	defer m.m.Unlock()
+	// m.Txs = append(m.Txs, tx)
+	m.Txs[tx.ID] = tx
 }

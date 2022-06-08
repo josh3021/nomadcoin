@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"os"
 
 	"github.com/josh3021/nomadcoin/utils"
@@ -22,7 +23,7 @@ var w *wallet
 
 func hasWalletFile() bool {
 	_, err := os.Stat(walletFilename)
-	return os.IsExist(err)
+	return !os.IsNotExist(err)
 }
 
 func createPrivateKey() *ecdsa.PrivateKey {
@@ -87,6 +88,7 @@ func Verify(signature, payload, address string) bool {
 func Wallet() *wallet {
 	if w == nil {
 		w = &wallet{}
+		fmt.Println(hasWalletFile())
 		if hasWalletFile() {
 			walletBytes := readWalletFile()
 			privateKey := parseWalletBytes(walletBytes)

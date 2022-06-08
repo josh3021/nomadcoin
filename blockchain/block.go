@@ -58,7 +58,7 @@ func createBlock(previousHash string, height, difficulty int) *Block {
 		Nonce:        0,
 	}
 	block.mine()
-	block.Transactions = Mempool.ConfirmTxs()
+	block.Transactions = Mempool().ConfirmTxs()
 	fmt.Printf("\nHeight: %d\nHash: %s\nDifficulty: %d\nNonce: %d\n\n", block.Height, block.Hash, block.Difficulty, block.Nonce)
 	persistBlock(block)
 	return block

@@ -139,6 +139,19 @@ type balanceResponse struct {
 	Balance int    `json:"balance"`
 }
 
+func myBalance(rw http.ResponseWriter, r *http.Request) {
+	address := wallet.Wallet().Address
+	total := r.URL.Query().Get("total")
+	bc := blockchain.Blockchain()
+	switch total {
+	case "true":
+		balance := blockchain.GetBalanceByAddress(bc, address)
+		utils.HandleErr(json.NewEncoder(rw).Encode(balanceResponse{address, balance}))
+	default:
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.UTxOutsByAddress(bc, address)))
+	}
+}
+
 func balance(rw http.ResponseWriter, r *http.Request) {
 	address := mux.Vars(r)["address"]
 	total := r.URL.Query().Get("total")
@@ -153,7 +166,8 @@ func balance(rw http.ResponseWriter, r *http.Request) {
 }
 
 func mempool(rw http.ResponseWriter, r *http.Request) {
-	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
+	txs := blockchain.MempoolStatus().Txs
+	utils.HandleErr(json.NewEncoder(rw).Encode(txs))
 }
 
 type myWalletResponse struct {
@@ -173,12 +187,13 @@ type addTxPayload struct {
 func transactions(rw http.ResponseWriter, r *http.Request) {
 	var payload addTxPayload
 	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
-	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
+	tx, err := blockchain.Mempool().AddTx(payload.To, payload.Amount)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		utils.HandleErr(json.NewEncoder(rw).Encode(errorResponse{err.Error()}))
 		return
 	}
+	p2p.BroadcastNewTx(tx)
 	rw.WriteHeader(http.StatusCreated)
 }
 
@@ -194,7 +209,7 @@ func peers(rw http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		var payload addPeerPayload
 		json.NewDecoder(r.Body).Decode(&payload)
-		p2p.AddPeer(payload.Address, payload.Port, port)
+		p2p.AddPeer(payload.Address, payload.Port, port, true)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -208,6 +223,7 @@ func Start(inputPort int) {
 	router.HandleFunc("/status", status).Methods(http.MethodGet)
 	router.HandleFunc("/blocks", blocks).Methods(http.MethodGet, http.MethodPost)
 	router.HandleFunc("/blocks/{hash:[0-9a-f]+}", block).Methods(http.MethodGet)
+	router.HandleFunc("/balance", myBalance).Methods(http.MethodGet)
 	router.HandleFunc("/balance/{address}", balance).Methods(http.MethodGet)
 	router.HandleFunc("/mempool", mempool).Methods(http.MethodGet)
 	router.HandleFunc("/wallet", myWallet).Methods(http.MethodGet)

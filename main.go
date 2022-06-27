@@ -31,6 +31,7 @@ func receiveOnly(c <-chan int) {
 
 func main() {
 	defer db.Close()
+	db.InitDB()
 	cli.Start()
 	// wallet.Wallet()
 	// c := make(chan int, 10)

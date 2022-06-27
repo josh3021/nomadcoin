@@ -13,16 +13,14 @@ var upgrader = websocket.Upgrader{}
 
 // Upgrade upgrades http to ws protocol
 func Upgrade(rw http.ResponseWriter, r *http.Request) {
+	openPort := r.URL.Query().Get("openPort")
+	ip := utils.Splitter(r.RemoteAddr, ":", 0)
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		return openPort != "" && ip != ""
+	}
 	conn, err := upgrader.Upgrade(rw, r, nil)
 	utils.HandleErr(err)
-	queries := r.URL.Query()
-	openPort := queries.Get("openPort")
-	utils.HandleErr(err)
-	ipAddress := utils.Splitter(r.RemoteAddr, ":", 0)
-	upgrader.CheckOrigin = func(r *http.Request) bool {
-		return ipAddress != "" && openPort != ""
-	}
-	initPeer(conn, ipAddress, openPort)
+	initPeer(conn, ip, openPort)
 	// time.Sleep(10 * time.Second)
 	// conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Hello from %s", )))
 

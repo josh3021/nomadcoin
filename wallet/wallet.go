@@ -6,11 +6,34 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
-	"fmt"
+	"io/fs"
 	"os"
 
 	"github.com/josh3021/nomadcoin/utils"
 )
+
+type fileLayer interface {
+	hasWalletFile() bool
+	writeFile(name string, data []byte, perm fs.FileMode) error
+	readFile(name string) ([]byte, error)
+}
+
+type layer struct{}
+
+func (layer) hasWalletFile() bool {
+	_, err := os.Stat(walletFilename)
+	return !os.IsNotExist(err)
+}
+
+func (layer) writeFile(name string, data []byte, perm fs.FileMode) error {
+	return os.WriteFile(name, data, perm)
+}
+
+func (layer) readFile(name string) ([]byte, error) {
+	return os.ReadFile(name)
+}
+
+var files fileLayer = layer{}
 
 type wallet struct {
 	privateKey *ecdsa.PrivateKey
@@ -21,11 +44,6 @@ const walletFilename string = "nomadcoin.wallet"
 
 var w *wallet
 
-func hasWalletFile() bool {
-	_, err := os.Stat(walletFilename)
-	return !os.IsNotExist(err)
-}
-
 func createPrivateKey() *ecdsa.PrivateKey {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	utils.HandleErr(err)
@@ -33,12 +51,12 @@ func createPrivateKey() *ecdsa.PrivateKey {
 }
 
 func persistPrivateKey(privateKeyBytes []byte) {
-	err := os.WriteFile(walletFilename, privateKeyBytes, 0644)
+	err := files.writeFile(walletFilename, privateKeyBytes, 0644)
 	utils.HandleErr(err)
 }
 
 func readWalletFile() []byte {
-	walletBytes, err := os.ReadFile(walletFilename)
+	walletBytes, err := files.readFile(walletFilename)
 	utils.HandleErr(err)
 	return walletBytes
 }
@@ -88,8 +106,7 @@ func Verify(signature, payload, address string) bool {
 func Wallet() *wallet {
 	if w == nil {
 		w = &wallet{}
-		fmt.Println(hasWalletFile())
-		if hasWalletFile() {
+		if files.hasWalletFile() {
 			walletBytes := readWalletFile()
 			privateKey := parseWalletBytes(walletBytes)
 			w.privateKey = privateKey

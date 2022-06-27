@@ -2,7 +2,7 @@ GET http://localhost:4000/
 ###
 GET http://localhost:3000/status
 ###
-GET http://localhost:3000/blocks
+GET http://localhost:3003/blocks
 ###
 POST http://localhost:3000/blocks
 ###
@@ -14,18 +14,18 @@ GET http://localhost:4000/balance/c5db43a4743e7f7ac9254783840d0e83180a3b62c308f3
 ###
 GET http://localhost:3000/mempool
 ###
-POST http://localhost:4000/transactions
+POST http://localhost:3000/transactions
 
 {
   "to": "winter",
   "amount": 10
 }
 ###
-POST http://localhost:6000/peers
+POST http://localhost:3002/peers
 
 {
   "address": "127.0.0.1",
-  "port": "3000"
+  "port": "3003"
 }
 ###
-GET http://localhost:6000/peers
+GET http://localhost:3000/peers

@@ -76,6 +76,13 @@ func (m *mempool) ConfirmTxs() []*Tx {
 	return txs
 }
 
+func (m *mempool) AddPeerTx(tx *Tx) {
+	m.m.Lock()
+	defer m.m.Unlock()
+	// m.Txs = append(m.Txs, tx)
+	m.Txs[tx.ID] = tx
+}
+
 // Mempool contains not confirmed transactions
 var m *mempool
 var memOnce sync.Once
@@ -177,11 +184,4 @@ func makeCoinbaseTx(address string) *Tx {
 	}
 	tx.getID()
 	return &tx
-}
-
-func (b *blockchain) AddPeerTx(tx *Tx) {
-	m.m.Lock()
-	defer m.m.Unlock()
-	// m.Txs = append(m.Txs, tx)
-	m.Txs[tx.ID] = tx
 }

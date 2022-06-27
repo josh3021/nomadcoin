@@ -14,6 +14,14 @@ type blockchain struct {
 	m                 sync.Mutex
 }
 
+type storage interface {
+	FindBlock(hash string) []byte
+	SaveBlock(hash string, data []byte)
+	SaveBlockchain(data []byte)
+	LoadBlockchain() []byte
+	DeleteAllBlocks()
+}
+
 const (
 	defaultDifficulty  int = 4
 	difficultyInterval int = 5
@@ -23,6 +31,7 @@ const (
 
 var b *blockchain
 var once sync.Once
+var dbStorage storage = db.DB{}
 
 func (b *blockchain) restore(data []byte) {
 	utils.FromBytes(b, data)
@@ -46,7 +55,7 @@ func (b *blockchain) Replace(newBlocks []*Block) {
 	b.CurrentDifficulty = newBlocks[0].Difficulty
 	b.NewestHash = newBlocks[0].Hash
 	persistBlockchain(b)
-	db.EmptyBlocks()
+	dbStorage.DeleteAllBlocks()
 	for _, block := range newBlocks {
 		persistBlock(block)
 	}
@@ -74,7 +83,7 @@ func (b *blockchain) AddPeerBlock(newBlock *Block) {
 }
 
 func persistBlockchain(b *blockchain) {
-	db.SaveBlockchain(utils.ToBytes(b))
+	dbStorage.SaveBlockchain(utils.ToBytes(b))
 }
 
 func recalculateDifficulty(b *blockchain) int {
@@ -195,7 +204,7 @@ func Blockchain() *blockchain {
 		b = &blockchain{
 			Height: 0,
 		}
-		checkpoint := db.Checkpoint()
+		checkpoint := dbStorage.LoadBlockchain()
 		if checkpoint == nil {
 			b.AddBlock()
 		} else {

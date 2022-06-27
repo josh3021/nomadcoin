@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/josh3021/nomadcoin/db"
 	"github.com/josh3021/nomadcoin/utils"
 )
 
@@ -46,7 +45,7 @@ func (b *Block) mine() {
 }
 
 func persistBlock(b *Block) {
-	db.SaveBlock(b.Hash, utils.ToBytes(b))
+	dbStorage.SaveBlock(b.Hash, utils.ToBytes(b))
 }
 
 func createBlock(previousHash string, height, difficulty int) *Block {
@@ -57,8 +56,8 @@ func createBlock(previousHash string, height, difficulty int) *Block {
 		Difficulty:   difficulty,
 		Nonce:        0,
 	}
-	block.mine()
 	block.Transactions = Mempool().ConfirmTxs()
+	block.mine()
 	fmt.Printf("\nHeight: %d\nHash: %s\nDifficulty: %d\nNonce: %d\n\n", block.Height, block.Hash, block.Difficulty, block.Nonce)
 	persistBlock(block)
 	return block
@@ -66,7 +65,7 @@ func createBlock(previousHash string, height, difficulty int) *Block {
 
 // FindBlock finds and returns block in database
 func FindBlock(hash string) (*Block, error) {
-	blockBytes := db.FindBlock(hash)
+	blockBytes := dbStorage.FindBlock(hash)
 	if blockBytes == nil {
 		return nil, ErrNotFound
 	}

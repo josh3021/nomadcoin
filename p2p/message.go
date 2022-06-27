@@ -34,6 +34,8 @@ func makeMessage(t MessageType, p interface{}) []byte {
 }
 
 func sendNewestBlock(p *peer) {
+	Peers.m.Lock()
+	defer Peers.m.Unlock()
 	b, err := blockchain.FindBlock(blockchain.Blockchain().NewestHash)
 	utils.HandleErr(err)
 	m := makeMessage(MessageNewestBlock, b)
@@ -92,11 +94,11 @@ func handleMessage(m *Message, p *peer) {
 	case MessageNewTxNotify:
 		var payload *blockchain.Tx
 		utils.HandleErr(json.Unmarshal(m.Payload, &payload))
-		blockchain.Blockchain().AddPeerTx(payload)
+		blockchain.Mempool().AddPeerTx(payload)
 	case MessageNewPeerNotify:
 		var payload string
 		utils.HandleErr(json.Unmarshal(m.Payload, &payload))
-		fmt.Println("payload")
+		fmt.Printf("I will now /ws upgrade %s", payload)
 		parts := strings.Split(payload, ":")
 		AddPeer(parts[0], parts[1], parts[2], false)
 	}
